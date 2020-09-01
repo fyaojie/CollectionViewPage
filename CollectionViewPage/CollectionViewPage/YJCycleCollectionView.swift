@@ -8,44 +8,60 @@
 
 import UIKit
 
-public protocol YJCycleCollectionViewDelegate : NSObjectProtocol {
+@objc public protocol YJCycleCollectionViewDelegate : NSObjectProtocol {
     func collectionView(_ collectionView: YJCycleCollectionView, numberOfItemsInSection section: Int) -> Int
     func collectionView(_ collectionView: YJCycleCollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell
 }
 
 public class YJCycleCollectionView: UIView {
 
+    // MARK: - public
     /// 监听点击
-    public var didSelectItemBlock : ((_ currentIndex: Int) -> (Void))?
+    @objc public var didSelectItemBlock : ((_ currentIndex: Int) -> (Void))?
     
     /// 监听滚动的结果 currentIndex 翻页滚动时返回   offset 滚动偏移量
-    public var didScrollItemOperationBlock : ((_ currentIndex: Int?, _ offset: CGPoint?) -> (Void))?
+    @objc public var didScrollItemOperationBlock : ((_ currentIndex: Int , _ offset: CGPoint) -> (Void))?
     
     /// 外边距
-    public var marginInset : UIEdgeInsets = .zero {
+    @objc public var marginInset : UIEdgeInsets = .zero {
         didSet {
+            guard let _ = superview, frame != .zero else { return }
             setNeedsLayout()
             layoutIfNeeded()
             reloadData()
         }
     }
     /// 内边距
-    public var paddingInset : UIEdgeInsets = .zero {
+    @objc public var paddingInset : UIEdgeInsets = .zero {
         didSet {
             reloadData()
         }
     }
+    
+    /** 自动滚动间隔时间,默认2s */
+    @objc public var autoScrollTimeInterval : TimeInterval = 2 {
+        didSet {
+            isAutoScroll ? setupTimer() : invalidateTimer()
+        }
+    }
+    /** 是否自动滚动,默认false */
+    @objc public var isAutoScroll : Bool = false {
+        didSet {
+            isAutoScroll ? setupTimer() : invalidateTimer()
+        }
+    }
+    
     /// 是否无限循环
-    public var isInfiniteLoop : Bool = true {
+    @objc public var isInfiniteLoop : Bool = true {
         didSet {
             fixInfiniteLoopLocation()
             reloadData()
         }
     }
     /// 修正比例，无限循环条件下生效，阈值 0-1， 0 不修正， 1持续修正
-    public var fixScale : CGFloat = 0.1
+    @objc public var fixScale : CGFloat = 0.1
     /// 方向
-    public var scrollDirection : UICollectionView.ScrollDirection = .horizontal {
+    @objc public var scrollDirection : UICollectionView.ScrollDirection = .horizontal {
         didSet {
             if let layout = collectionView.collectionViewLayout as? UICollectionViewFlowLayout {
                 layout.scrollDirection = scrollDirection
@@ -56,20 +72,20 @@ public class YJCycleCollectionView: UIView {
     }
     
     /// item 宽高比(竖向 高宽比)，默认1 如果想指定大小，设置为0, 阈值[0,5]
-    public var itemSizeScale : CGFloat = 1 {
+    @objc public var itemSizeScale : CGFloat = 1 {
         didSet {
            reloadData()
         }
     }
     /// 高度不能大于frame - 内边距，否则按照比例自动缩减
-    public var itemSize : CGSize = .zero {
+    @objc public var itemSize : CGSize = .zero {
         didSet {
            reloadData()
         }
     }
     
     /// 是否按页操作
-    public var isPagingEnabled : Bool = true {
+    @objc public var isPagingEnabled : Bool = true {
         didSet {
             collectionView.collectionViewLayout = isPagingEnabled ? customFlowLayout : systemFlowLayout
             reloadData()
@@ -77,33 +93,33 @@ public class YJCycleCollectionView: UIView {
     }
     
     /// 间距
-    public var minimumLineSpacing : CGFloat = 0 {
+    @objc public var minimumLineSpacing : CGFloat = 0 {
         didSet {
             reloadData()
         }
     }
     
-    weak open var delegate: YJCycleCollectionViewDelegate?
+    @objc weak open var delegate: YJCycleCollectionViewDelegate?
     
-    open func register(_ cellClass: AnyClass?, forCellWithReuseIdentifier identifier: String) {
+    @objc open func register(_ cellClass: AnyClass?, forCellWithReuseIdentifier identifier: String) {
         collectionView.register(cellClass, forCellWithReuseIdentifier: identifier)
     }
 
-    open func register(_ nib: UINib?, forCellWithReuseIdentifier identifier: String) {
+    @objc open func register(nib: UINib?, forCellWithReuseIdentifier identifier: String) {
         collectionView.register(nib, forCellWithReuseIdentifier: identifier)
     }
     
-    open func dequeueReusableCell(withReuseIdentifier identifier: String, for indexPath: IndexPath) -> UICollectionViewCell {
+    @objc open func dequeueReusableCell(withReuseIdentifier identifier: String, for indexPath: IndexPath) -> UICollectionViewCell {
         return collectionView.dequeueReusableCell(withReuseIdentifier: identifier, for: indexPath)
     }
     
-    open func reloadData() {
+    @objc open func reloadData() {
         originItemsCount = delegate?.collectionView(self, numberOfItemsInSection: 0) ?? 0
         collectionView.reloadData()
     }
-    
+    // MARK: - fileprivate
     /// 真实大小
-    fileprivate var realItemSize : CGSize {
+    fileprivate var realItemSize: CGSize {
         get {
             let tempScale = min(5, max(0, itemSizeScale))
 
@@ -145,17 +161,19 @@ public class YJCycleCollectionView: UIView {
         }
     }
     /// 是否有速度,用于判定何时结束
-    fileprivate var rate : Bool = false
+    fileprivate var rate: Bool = false
     
+    fileprivate var timer: DispatchSourceTimer?
+        
     /// 真实数量
-    fileprivate var totalItemsCount : Int {
+    fileprivate var totalItemsCount: Int {
         get {
             originItemsCount * (isInfiniteLoop ? 200 : 1)
         }
     }
     
     /// 原始数量
-    fileprivate var originItemsCount : Int = 0
+    fileprivate var originItemsCount: Int = 0
     
     fileprivate var systemFlowLayout: UICollectionViewFlowLayout {
         get {
@@ -183,18 +201,13 @@ public class YJCycleCollectionView: UIView {
         collectionView.scrollsToTop = false
         collectionView.isPagingEnabled = false
         collectionView.decelerationRate = .fast
-//        if #available(iOS 11.0, *) {
-//            collectionView.contentInsetAdjustmentBehavior = .never
-//        } else {
-//            // Fallback on earlier versions
-//        }
         addSubview(collectionView)
         return collectionView
     }()
     
     public override func layoutSubviews() {
         super.layoutSubviews()
-
+        if frame == .zero { return }
         let x = marginInset.left
         let y = marginInset.top
         let width = bounds.width - marginInset.left - marginInset.right
@@ -203,8 +216,8 @@ public class YJCycleCollectionView: UIView {
         
         /// 无限循环模式下调整位置
         if collectionView.contentOffset.x == 0 && totalItemsCount > 0 && isInfiniteLoop {
-            let targetIndex : Float = isInfiniteLoop ? Float(totalItemsCount) * 0.5 : 0
-            collectionView.scrollToItem(at: IndexPath(item: Int(targetIndex), section: 0), at: UICollectionView.ScrollPosition.left, animated: false)
+            let targetIndex : Float = Float(totalItemsCount) * 0.5
+            collectionView.scrollToItem(at: IndexPath(item: Int(targetIndex), section: 0), at: scrollDirection == .horizontal ? .left : .top, animated: false)
         }
     }
     
@@ -246,8 +259,10 @@ extension YJCycleCollectionView : UICollectionViewDelegate, UICollectionViewData
 
 // MARK: - UIScrollViewDelegate
 extension YJCycleCollectionView: UIScrollViewDelegate {
-    public func scrollViewDidScroll(_ scrollView: UIScrollView) {}
-
+    public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        if isAutoScroll { invalidateTimer() }
+    }
+    
     public func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
         // velocity.y表示在将要离开拖动的时候的方向（-，+），速率；y==0就是没有速率的拖动
         /// 获取当前速率
@@ -263,18 +278,15 @@ extension YJCycleCollectionView: UIScrollViewDelegate {
         if self.rate == false && decelerate == false {
             scrollViewDidEndScrollingAnimation(collectionView)
         }
+        if isAutoScroll { setupTimer() }
     }
 
     public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        if self.rate == true {
-            scrollViewDidEndScrollingAnimation(collectionView)
-        }
+        if self.rate { scrollViewDidEndScrollingAnimation(collectionView) }
     }
     
     public func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
-        
-        didScrollItemOperationBlock?(isPagingEnabled ? (currentIndex() % originItemsCount) : nil, originOffet(scrollView))
-        
+        didScrollItemOperationBlock?(isPagingEnabled ? (currentIndex() % originItemsCount) : -1, originOffet(scrollView))
         fixInfiniteLoopLocation()
     }
 
@@ -360,6 +372,42 @@ extension YJCycleCollectionView: UIScrollViewDelegate {
             index = Int((collectionView.contentOffset.y + realItemSize.height * 0.5) / (realItemSize.height + self.minimumLineSpacing))
         }
         return max(0, index)
+    }
+    
+    func invalidateTimer() {
+        timer?.cancel()
+        timer = nil
+    }
+    
+    func setupTimer() {
+        invalidateTimer()
+        timer = DispatchSource.makeTimerSource(flags: [], queue: DispatchQueue.global())
+        timer?.schedule(deadline: .now(), repeating: autoScrollTimeInterval)
+        timer?.setEventHandler(handler: { [weak self] in
+            DispatchQueue.main.async {
+                self?.automaticScroll()
+            }
+        })
+        timer?.resume()
+    }
+
+    func automaticScroll() {
+        if totalItemsCount == 0 { return }
+        scroll(to: currentIndex() + 1)
+    }
+    
+    func scroll(to index: Int) {
+        var targetIndex = index
+        let position: UICollectionView.ScrollPosition = scrollDirection == .horizontal ? .left : .top
+        
+        if targetIndex >= totalItemsCount {
+            if isInfiniteLoop {
+                targetIndex = Int(Float(totalItemsCount) * 0.5)
+                self.collectionView.scrollToItem(at: IndexPath(item: Int(targetIndex), section: 0), at: position, animated: true)
+            }
+            return
+        }
+        self.collectionView.scrollToItem(at: IndexPath(item: Int(targetIndex), section: 0), at: position, animated: true)
     }
 }
 

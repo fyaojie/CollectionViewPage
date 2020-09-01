@@ -5,7 +5,7 @@ collection view的小组件, 按照item进行翻页，具有属性的配置功�
 
 那么问题来了，如何去做呢？
 
-#####先尝试去做翻页功能
+##### 先尝试去做翻页功能
 
 * 先进行系统UICollectionView的测试，
 
@@ -164,7 +164,7 @@ public func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity v
 
 然后提交，我还以为要收工了呢，结果反馈UI效果太丝滑，和系统的那种分页效果不同，继续改！
 
-#####翻页功能继续修改
+##### 翻页功能继续修改
 
 思考一下，如何做到系统的那种操作感觉呢？那就是使用系统的方式，但是要对翻页的宽度做调整，百度 Google了解一下，搜索 如何修改collectionView的翻页宽度？ 然后就找到了，自定义flowlayout,在这里自行计算偏移
 
@@ -236,3 +236,7 @@ class YJCycleCollectionViewFlowLayout: UICollectionViewFlowLayout {
 ```
 
 测试代码及完整组件见demo，效果还可以，收工！
+
+
+
+##### 2020-08 添加定时循环功能，添加倾向于OC的兼容处理
