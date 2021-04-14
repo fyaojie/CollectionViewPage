@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import YJCycleCollectionView
 
 class CMSCollectionViewController: UIViewController {
 
@@ -122,7 +123,7 @@ extension CMSCollectionViewController : YJCycleCollectionViewDelegate {
     }
     
     func collectionView(_ collectionView: YJCycleCollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CMSCollectionViewCell", for: indexPath) as! CMSCollectionViewCell
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CMSCollectionViewCell", forIndexPath: indexPath) as! CMSCollectionViewCell
         cell.model = dataSource[indexPath.item]
         cell.backgroundColor = .red
         return cell

@@ -1,0 +1,19 @@
+# Uncomment the next line to define a global platform for your project
+# platform :ios, '9.0'
+
+target 'CollectionViewPage' do
+  # Comment the next line if you don't want to use dynamic frameworks
+  use_frameworks!
+
+  # Pods for CollectionViewPage
+
+  target 'CollectionViewPageTests' do
+    inherit! :search_paths
+    # Pods for testing
+  end
+
+  target 'CollectionViewPageUITests' do
+    # Pods for testing
+  end
+  pod 'YJCycleCollectionView', :path => '../'
+end
